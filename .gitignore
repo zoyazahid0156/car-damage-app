@@ -1,0 +1,12 @@
+﻿*
+!*/
+!*.py
+!*.md
+!requirements*.txt
+!Dockerfile
+!.dockerignore
+!.gitignore
+!car_parts_17_coco_final.json
+.venv/
+venv*/
+__pycache__/
