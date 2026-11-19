@@ -85,8 +85,17 @@ def main():
         try:
             download(url, dest, token)
             print(f"  done ({dest.stat().st_size / 1e6:.0f} MB)")
-        except Exception as ex:                       # keep the message short; never print the token
+        except Exception as ex:                       # never print the token itself
             print(f"  FAILED: {type(ex).__name__}: {ex}")
+            print(f"    link used     : {url}")
+            print(f"    token         : " + (f"set, {len(token)} characters, starts with '{token[:3]}'" if token else "NOT SET"))
+            if token and (token != token.strip('"\'') or " " in token or not token.startswith("hf_")):
+                print("    WARNING: the token looks wrong (it must start with hf_ and have no quotes or spaces)")
+            if "YOUR" in url.upper():
+                print("    WARNING: the link still contains a placeholder (YOUR-NAME)")
+            if hasattr(ex, "headers") and ex.headers is not None:
+                print(f"    failed at     : {getattr(ex, 'url', '?')}")
+                print(f"    server message: {ex.headers.get('X-Error-Message') or ex.headers.get('X-Error-Code') or '(none)'}")
             if required:
                 failed = True
     if failed:
