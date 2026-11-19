@@ -15,6 +15,7 @@ Run by hand to test:  python fetch_models.py
 import os
 import sys
 import urllib.request
+from urllib.parse import urlparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -28,13 +29,26 @@ MODELS = [
 MIN_BYTES = 1_000_000          # anything smaller is an error page, not a model
 
 
+class KeepAuthOnlyOnSameHost(urllib.request.HTTPRedirectHandler):
+    """Hugging Face redirects the download to another host (a CDN with a signed link).
+    Sending the token there makes the CDN answer 401/400, so the token is dropped on a redirect to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urlparse(newurl).netloc != urlparse(req.full_url).netloc:
+            new.headers.pop("Authorization", None)
+            new.unredirected_hdrs.pop("Authorization", None)
+        return new
+
+
 def download(url, dest, token):
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": "car-damage-server"})
     if token:
         request.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(request, timeout=120) as response, open(tmp, "wb") as out:
+    opener = urllib.request.build_opener(KeepAuthOnlyOnSameHost)
+    with opener.open(request, timeout=120) as response, open(tmp, "wb") as out:
         total = int(response.headers.get("Content-Length") or 0)
         done, last_print = 0, 0
         while True:
