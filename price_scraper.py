@@ -45,6 +45,11 @@ log = logging.getLogger("parts_api")
 # ----------------------------- settings -----------------------------
 URL = "https://www.pakwheels.com/accessories-spare-parts/"
 HEADLESS = os.environ.get("HEADLESS", "1") != "0"  # HEADLESS=0 shows Chrome
+PAGE_LOAD_TIMEOUT = int(os.environ.get("PAGE_LOAD_TIMEOUT", 40))   # seconds to wait for PakWheels to load
+WAIT_SECONDS = int(os.environ.get("SCRAPE_WAIT", 30))             # seconds to wait for the search box / results
+SCROLLS = int(os.environ.get("SCRAPE_SCROLLS", 3))                # scrolls to load lazy results (was 5)
+CACHE_TTL = float(os.environ.get("PRICE_CACHE_HOURS", 24)) * 3600 # same search again = instant, no browser
+_CACHE = {}                                                       # (search, phrase) -> (time, items)
 MAX_BROWSERS = 2          # Chrome windows running at the same time
 QUEUE_TIMEOUT = 90        # seconds a request waits for a free browser
 TEMP_PREFIX = "parts_prices_"
@@ -148,6 +153,9 @@ def make_driver():
     options.page_load_strategy = "eager"
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-extensions")
+    # pictures are not needed for prices; skipping them makes the page load much faster
+    options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     if os.environ.get("CHROME_NO_SANDBOX") == "1":       # needed when Chrome runs as root inside Docker (Railway)
         options.add_argument("--no-sandbox")
@@ -170,7 +178,7 @@ def make_driver():
         driver = webdriver.Chrome(options=options)
     if not HEADLESS:
         driver.maximize_window()
-    driver.set_page_load_timeout(40)
+    driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver
 
 
@@ -182,7 +190,11 @@ def search_part(driver, wait, cfg):
     except TimeoutException:
         driver.execute_script("window.stop();")
 
-    box = wait.until(EC.element_to_be_clickable((By.XPATH, SEARCH_BOX)))
+    try:
+        box = wait.until(EC.element_to_be_clickable((By.XPATH, SEARCH_BOX)))
+    except TimeoutException:
+        # say WHAT the browser saw, so a block page (Cloudflare / "Access denied") can be told from a slow page
+        raise TimeoutException(f"search box not found; page title was {driver.title!r}")
     box.clear()
     box.send_keys(cfg["search"])
     try:
@@ -194,12 +206,12 @@ def search_part(driver, wait, cfg):
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, RESULT_CSS)))
     except TimeoutException:
         return None
-    time.sleep(2)
+    time.sleep(1)
 
     # scroll so lazy-loaded results appear
-    for _ in range(5):
+    for _ in range(SCROLLS):
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(1)
+        time.sleep(0.7)
 
     blocks = driver.find_elements(By.CSS_SELECTOR, RESULT_CSS)
     log.info("%d result blocks for '%s'", len(blocks), cfg["search"])
@@ -220,12 +232,20 @@ def search_part(driver, wait, cfg):
 
 
 def fetch_prices(cfg):
-    """Start a fresh headless Chrome, scrape, always close it."""
+    """Start a fresh headless Chrome, scrape, always close it. The same search within PRICE_CACHE_HOURS
+    is answered from memory (no browser)."""
+    key = (cfg["search"].lower(), cfg["phrase"])
+    hit = _CACHE.get(key)
+    if hit and time.time() - hit[0] < CACHE_TTL:
+        return hit[1]
     driver = make_driver()
     try:
-        return search_part(driver, WebDriverWait(driver, 30), cfg)
+        items = search_part(driver, WebDriverWait(driver, WAIT_SECONDS), cfg)
     finally:
         driver.quit()
+    if items:                                   # only remember real results, never failures
+        _CACHE[key] = (time.time(), items)
+    return items
 
 
 # ----------------------- turn user input into a config -----------------------

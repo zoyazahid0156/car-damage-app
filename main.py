@@ -113,8 +113,9 @@ def prices(
         raise HTTPException(503, "Server is busy, please try again shortly.")
     try:
         items = ps.fetch_prices(cfg)
-    except ps.TimeoutException:
-        raise HTTPException(504, "PakWheels took too long to respond.")
+    except ps.TimeoutException as ex:
+        print("PakWheels timeout:", getattr(ex, "msg", ex))
+        raise HTTPException(504, "PakWheels took too long to respond. " + str(getattr(ex, "msg", "") or "")[:200])
     except ps.WebDriverException:
         print(traceback.format_exc())
         raise HTTPException(502, "Browser error while searching PakWheels (is Chrome installed?).")
