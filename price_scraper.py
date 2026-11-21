@@ -46,12 +46,12 @@ log = logging.getLogger("parts_api")
 URL = "https://www.pakwheels.com/accessories-spare-parts/"
 HEADLESS = os.environ.get("HEADLESS", "1") != "0"  # HEADLESS=0 shows Chrome
 PAGE_LOAD_TIMEOUT = int(os.environ.get("PAGE_LOAD_TIMEOUT", 90))   # seconds to wait for PakWheels to load
-WAIT_SECONDS = int(os.environ.get("SCRAPE_WAIT", 60))             # seconds to wait for the search box / results
+WAIT_SECONDS = int(os.environ.get("SCRAPE_WAIT", 80))             # seconds to wait for the search box / results
 SCROLLS = int(os.environ.get("SCRAPE_SCROLLS", 3))                # scrolls to load lazy results (was 5)
 CACHE_TTL = float(os.environ.get("PRICE_CACHE_HOURS", 24)) * 3600 # same search again = instant, no browser
 _CACHE = {}                                                       # (search, phrase) -> (time, items)
 MAX_BROWSERS = 2          # Chrome windows running at the same time
-QUEUE_TIMEOUT = 90        # seconds a request waits for a free browser
+QUEUE_TIMEOUT = 120        # seconds a request waits for a free browser
 TEMP_PREFIX = "parts_prices_"
 STALE_AFTER_SECONDS = 3600
 
