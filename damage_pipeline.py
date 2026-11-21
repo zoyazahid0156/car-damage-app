@@ -41,6 +41,22 @@ DAMAGE_MODEL = ROOT / "damage_results/damage_seg/weights/best.pt"
 _default_m2 = ROOT / "damage_26" / "best_26k.pt"            # your 26k-image model, next to this file
 _m2 = os.environ.get("DAMAGE_MODEL_2", "")
 DAMAGE_MODEL_2 = Path(_m2) if _m2 else (_default_m2 if _default_m2.exists() else None)
+# The part detector was trained with labels numbered like car_parts_17_coco_final.json (id 1..17 -> class 0..16),
+# but the names stored inside best.pt are in a different order. This list is the REAL meaning of class 0..16.
+# Set PART_NAME_FIX=0 (environment variable) for a detector whose stored names are already correct.
+PART_NAME_FIX = os.environ.get("PART_NAME_FIX", "1") == "1"
+PART_NAMES_FIXED = ["front_bumper", "front_door", "front_window", "wheel", "quarter_panel", "trunk_lid",
+                    "taillight", "windshield_front", "license_plate", "rear_bumper", "rear_door", "rear_window",
+                    "front_fender", "hood", "headlight", "side_mirror", "windshield_back"]
+
+
+def part_name(names, cls_id):
+    """Name of a detected part class (see PART_NAME_FIX above)."""
+    if PART_NAME_FIX and 0 <= cls_id < len(PART_NAMES_FIXED) and len(names) == len(PART_NAMES_FIXED):
+        return PART_NAMES_FIXED[cls_id]
+    return names[cls_id]
+
+
 EXTRA_CONF = 0.25          # confidence for the second damage model
 EXTRA_MIN_ADD = 0.3        # a region from model 2 is added only if < this share of it overlaps CarDD regions
 
@@ -137,7 +153,7 @@ def analyse_frame(img, part_model, dmg_model, damage_conf=None, extra_model=None
     parts = []
     for b in pr.boxes:
         x1, y1, x2, y2 = [int(v) for v in b.xyxy[0].tolist()]
-        parts.append({"name": pr.names[int(b.cls[0])], "conf": float(b.conf[0]),
+        parts.append({"name": part_name(pr.names, int(b.cls[0])), "conf": float(b.conf[0]),
                       "box": (max(0, x1), max(0, y1), min(w, x2), min(h, y2)),
                       "dmg_mask": np.zeros((h, w), np.uint8), "types": defaultdict(float)})
 
