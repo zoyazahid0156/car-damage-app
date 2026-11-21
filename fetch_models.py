@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent
 
 # These paths must match damage_pipeline.py (PART_MODEL, DAMAGE_MODEL and the default second model).
 MODELS = [
-    ("PART_MODEL_URL", ROOT / "runs/detect/detector_results_17/car_parts_new/weights/best.pt", True),
+    ("PART_MODEL_URL", ROOT / "runs/detect/detector_results_17/car_parts_635/weights/best.pt", True),
     ("DAMAGE_MODEL_URL", ROOT / "damage_results/damage_seg/weights/best.pt", True),
     ("DAMAGE_MODEL_2_URL", ROOT / "damage_26" / "best_26k.pt", False),
 ]
