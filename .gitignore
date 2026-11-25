@@ -10,3 +10,9 @@
 .venv/
 venv*/
 __pycache__/
+manual_labeler.py
+build_merged_dataset.py
+calibrate_damage_from_full_cars.py
+check_coco.py
+check_part_crops_17.py
+check_patchcore_dataset.py
