@@ -2,31 +2,20 @@ import cv2
 import json
 import math
 from pathlib import Path
-
 import numpy as np
-
-# ============================================================
-# SETTINGS
-# ============================================================
 
 IMAGE_DIR = Path("car_images")
 
-# IMPORTANT:
-# This is a NEW file. Your original COCO JSON is not modified.
-JSON_FILE = Path("car_parts_17_coco_121_299.json")
+JSON_FILE = Path("car_parts_17_coco_476_684.json")
 
-FIRST_IMAGE_NUMBER = 121
-LAST_IMAGE_NUMBER = 299
+FIRST_IMAGE_NUMBER = 476
+LAST_IMAGE_NUMBER = 684
 
 MAX_DISPLAY_WIDTH = 1400
 MAX_DISPLAY_HEIGHT = 800
 PANEL_HEIGHT = 125
 
 WINDOW_NAME = "17-Part Car Labeler"
-
-# ============================================================
-# FIXED 17 PARTS - DO NOT ADD OR REMOVE CLASSES
-# ============================================================
 
 PARTS = [
     "front_bumper",
@@ -48,9 +37,6 @@ PARTS = [
     "license_plate",
 ]
 
-# These parts are outlined with a POLYGON (click the corners). All other parts use a rectangle (drag a box).
-# Every annotation still stores a "bbox" (for polygons it is the box around the outline), so tools that read
-# boxes keep working; polygon parts also store a "segmentation" outline.
 POLYGON_PARTS = {"front_fender", "quarter_panel", "front_door", "rear_door"}
 
 CATEGORY_NAME_TO_ID = {
@@ -72,16 +58,11 @@ EXPECTED_CATEGORIES = [
     for index, part in enumerate(PARTS)
 ]
 
-# ============================================================
-# VEHICLE INFORMATION FOR THE IMAGES BEING LABELED
-# Check these match your photos. Later ranges override earlier ones.
-# ============================================================
-
 DEFAULT_VEHICLE = {"make": "Unknown", "model": "Unknown", "year": 0, "variant": ""}
 
 VEHICLE_INFO = {}
 
-for i in range(FIRST_IMAGE_NUMBER, LAST_IMAGE_NUMBER + 1):      # first..last image (last included)
+for i in range(FIRST_IMAGE_NUMBER, LAST_IMAGE_NUMBER + 1):    
     VEHICLE_INFO[f"{i}.jpg"] = {
         "make": "Toyota",
         "model": "Corolla",
@@ -89,23 +70,23 @@ for i in range(FIRST_IMAGE_NUMBER, LAST_IMAGE_NUMBER + 1):      # first..last im
         "variant": "1.6 Altis",
     }
 
-for i in range(95, 105):                                         # 95..104 (outside this range: unused)
+for i in range(95, 105):                                       
     VEHICLE_INFO[f"{i}.jpg"] = {
         "make": "Honda",
         "model": "Civic",
         "year": 2019,
         "variant": "Turbo",
     }
-
-
+for i in range(476, 685):                                       
+    VEHICLE_INFO[f"{i}.jpg"] = {
+        "make": "Honda",
+        "model": "Civic",
+        "year": 2019,
+        "variant": "Turbo",
+    }
 def vehicle_info(filename):
     """Vehicle details for an image; never crashes on an image that is not listed above."""
     return VEHICLE_INFO.get(filename, DEFAULT_VEHICLE)
-
-
-# ============================================================
-# FIND ONLY THE IMAGES IN THE RANGE ABOVE
-# ============================================================
 
 if not IMAGE_DIR.exists():
     raise SystemExit(
@@ -128,10 +109,6 @@ if not image_files:
     )
 
 print(f"Images found: {len(image_files)} of {LAST_IMAGE_NUMBER - FIRST_IMAGE_NUMBER + 1}")
-
-# ============================================================
-# LOAD OR CREATE THE SEPARATE COCO FILE
-# ============================================================
 
 if JSON_FILE.exists():
     with open(JSON_FILE, "r", encoding="utf-8") as file:
@@ -172,12 +149,8 @@ for annotation in data["annotations"]:
             "No changes have been saved."
         )
 
-# Keep the fixed 17 categories, with stable IDs.
 data["categories"] = EXPECTED_CATEGORIES.copy()
 
-# ============================================================
-# SAVE FUNCTION
-# ============================================================
 
 def save_json():
     # Write to a temporary file first, then replace the output.
@@ -249,11 +222,6 @@ def next_annotation_id():
     ]
     return max(ids, default=0) + 1
 
-
-# ============================================================
-# DISPLAY SCALING
-# ============================================================
-
 def calculate_scale(width, height):
     return min(
         MAX_DISPLAY_WIDTH / width,
@@ -265,10 +233,6 @@ def calculate_scale(width, height):
 def original_to_display(x, y, scale):
     return int(round(x * scale)), int(round(y * scale))
 
-
-# ============================================================
-# POLYGON HELPERS
-# ============================================================
 
 def polygon_area(points):
     """Shoelace formula; points = [(x, y), ...]."""
@@ -309,7 +273,6 @@ def annotation_polygon_display(annotation, scale):
             dtype=np.int32,
         )
     return None
-
 
 def draw_polygon_tool(base_image, window_title, context_image=None):
     """Let the user click polygon corners on base_image (a clean image). Returns [(x, y), ...] in display
@@ -395,15 +358,9 @@ def draw_polygon_tool(base_image, window_title, context_image=None):
     except cv2.error:
         pass
 
-    # swallow a held / auto-repeating ENTER, so it cannot immediately open another window
     for _ in range(12):
         cv2.waitKey(25)
     return result
-
-
-# ============================================================
-# DRAW ANNOTATIONS
-# ============================================================
 
 def draw_annotations(display_image, annotations, scale, selected_index=None):
     result = display_image.copy()
@@ -456,7 +413,6 @@ def draw_annotations(display_image, annotations, scale, selected_index=None):
 
     return result
 
-
 def find_annotation_at(mouse_x, mouse_y, annotations, scale):
     # Search backwards so the topmost/latest annotation is selected first.
     for index in range(len(annotations) - 1, -1, -1):
@@ -477,11 +433,6 @@ def find_annotation_at(mouse_x, mouse_y, annotations, scale):
 
     return None
 
-
-# ============================================================
-# MOUSE CALLBACK
-# ============================================================
-
 mouse_x = 0
 mouse_y = 0
 mouse_clicked = False
@@ -495,11 +446,6 @@ def mouse_callback(event, x, y, flags, param):
 
     if event == cv2.EVENT_LBUTTONDOWN:
         mouse_clicked = True
-
-
-# ============================================================
-# MAIN LABELING LOOP
-# ============================================================
 
 image_index = 0
 selected_part = None
@@ -636,9 +582,7 @@ try:
 
         key = cv2.waitKey(30) & 0xFF
 
-        # ----------------------------------------------------
         # HANDLE MOUSE CLICK
-        # ----------------------------------------------------
 
         if mouse_clicked:
             # Ignore clicks on the header panel.
@@ -670,9 +614,8 @@ try:
 
             mouse_clicked = False
 
-        # ----------------------------------------------------
         # SELECT PARTS 1-9
-        # ----------------------------------------------------
+
 
         if ord("1") <= key <= ord("9"):
             number = key - ord("0")
@@ -680,9 +623,7 @@ try:
             selected_annotation_index = None
             print(f"\nSelected part: {selected_part}")
 
-        # ----------------------------------------------------
         # SELECT PARTS 10-17
-        # ----------------------------------------------------
 
         elif key == ord("0"):
             print("\nChoose part number:")
@@ -702,9 +643,7 @@ try:
             except ValueError:
                 print("Please enter a whole number from 10 to 17.")
 
-        # ----------------------------------------------------
         # ENTER = DRAW NEW BOX OR REPLACE SELECTED BOX
-        # ----------------------------------------------------
 
         elif key in (10, 13): # Enter key
 
@@ -823,9 +762,7 @@ try:
             annotations = get_annotations_for_image(image_id)
             selected_annotation_index = None
 
-        # ----------------------------------------------------
         # D = DELETE SELECTED BOX
-        # ----------------------------------------------------
 
         elif key in (ord("d"), ord("D")):
             if selected_annotation_index is None:
@@ -870,9 +807,7 @@ try:
             else:
                 print("\nThere are no boxes on this image.")
 
-        # ----------------------------------------------------
         # N = NEXT IMAGE
-        # ----------------------------------------------------
 
         elif key in (ord("n"), ord("N")):
             save_json()
@@ -886,9 +821,7 @@ try:
             else:
                 print("\nYou are already on the last image.")
 
-        # ----------------------------------------------------
         # P = PREVIOUS IMAGE
-        # ----------------------------------------------------
 
         elif key in (ord("p"), ord("P")):
             save_json()
@@ -912,7 +845,6 @@ try:
             break
 
 finally:
-    # Always save progress if the loop exits normally or raises an error.
     save_json()
     cv2.destroyAllWindows()
 
